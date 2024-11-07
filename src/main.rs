@@ -8,15 +8,33 @@ use tracing_subscriber::FmtSubscriber;
 use tower_http::services::ServeDir;
 use tower_http::cors::CorsLayer;
 use http::HeaderValue;
+use serde::{Deserialize, Serialize};
 use nanoid::nanoid;
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(transparent)]
+struct PlayerId(String);
+
+#[derive(Deserialize, Serialize, Debug)]
+struct EventData {
+    game_id: String,
+    player_id: String,
+}
 
 fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
     info!(ns = socket.ns(), ?socket.id, "Socket.IO connected");
     socket.emit("auth", &data).ok();
 
-    socket.on("message", |socket: SocketRef, Data::<Value>(data)| {
+    socket.on("join_game", |s: SocketRef, Data::<EventData>(data)| {
+        if s.extensions.get::<PlayerId>().is_some() {
+            return;
+        }
+
+        s.extensions.insert(PlayerId(data.player_id.clone()));
+        let _ = s.join(data.game_id.clone());
+
         info!(?data, "Received event:");
-        socket.emit("message-back", &data).ok();
+        s.to(data.game_id.clone()).emit("player joined", &data).ok();
     });
 
     socket.on("message-with-ack", |Data::<Value>(data), ack: AckSender| {

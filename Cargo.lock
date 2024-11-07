@@ -26,6 +26,7 @@ dependencies = [
  "http",
  "nanoid",
  "rmpv",
+ "serde",
  "socketioxide",
  "tokio",
  "tower-http",

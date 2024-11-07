@@ -15,6 +15,10 @@ use nanoid::nanoid;
 #[serde(transparent)]
 struct PlayerId(String);
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(transparent)]
+struct GameId(String);
+
 #[derive(Deserialize, Serialize, Debug)]
 struct EventData {
     game_id: String,
@@ -31,10 +35,23 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
         }
 
         s.extensions.insert(PlayerId(data.player_id.clone()));
+        s.extensions.insert(GameId(data.game_id.clone()));
         let _ = s.join(data.game_id.clone());
 
-        info!(?data, "Received event:");
         s.to(data.game_id.clone()).emit("player joined", &data).ok();
+    });
+
+    socket.on("start game", |s: SocketRef| {
+                info!("game id {:?}", s.extensions.get::<GameId>());
+        match s.extensions.get::<GameId>() {
+            Some(x) => {
+                info!("starting game");
+                s.within(x.0).emit("start game", &1535).ok();
+            }
+            None => {
+                return
+            }
+        }
     });
 
     socket.on("message-with-ack", |Data::<Value>(data), ack: AckSender| {

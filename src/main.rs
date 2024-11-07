@@ -8,6 +8,7 @@ use tracing_subscriber::FmtSubscriber;
 use tower_http::services::ServeDir;
 use tower_http::cors::CorsLayer;
 use http::HeaderValue;
+use nanoid::nanoid;
 
 fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
     info!(ns = socket.ns(), ?socket.id, "Socket.IO connected");
@@ -24,6 +25,10 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
     });
 }
 
+async fn create_game() -> String {
+    nanoid!()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::subscriber::set_global_default(FmtSubscriber::default())?;
@@ -38,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = axum::Router::new()
         .nest_service("/", ServeDir::new("build"))
+        .route("/game", axum::routing::post(create_game))
         .layer(cors)
         .layer(layer);
 

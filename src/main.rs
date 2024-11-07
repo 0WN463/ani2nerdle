@@ -6,6 +6,8 @@ use socketioxide::{
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 use tower_http::services::ServeDir;
+use tower_http::cors::CorsLayer;
+use http::HeaderValue;
 
 fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
     info!(ns = socket.ns(), ?socket.id, "Socket.IO connected");
@@ -31,8 +33,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     io.ns("/", on_connect);
     io.ns("/custom", on_connect);
 
+    let cors = CorsLayer::new()
+        .allow_origin( "http://localhost:3001".parse::<HeaderValue>().unwrap());
+
     let app = axum::Router::new()
-        .nest_service("/page", ServeDir::new("fe"))
+        .nest_service("/", ServeDir::new("build"))
+        .layer(cors)
         .layer(layer);
 
     info!("Starting server");

@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "futures",
+ "http",
  "rmpv",
  "socketioxide",
  "tokio",

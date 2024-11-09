@@ -54,6 +54,18 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
         }
     });
 
+    socket.on("send anime", |s: SocketRef, Data::<i64>(data)| {
+        match s.extensions.get::<GameId>() {
+            Some(x) => {
+                s.within(x.0).emit("next anime", &data).ok();
+            }
+            None => {
+                return
+            }
+        }
+    });
+
+
     socket.on("message-with-ack", |Data::<Value>(data), ack: AckSender| {
         info!(?data, "Received event");
         ack.send(&("replied: ".to_owned() + data.as_str().unwrap())).ok();

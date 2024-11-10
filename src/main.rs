@@ -5,7 +5,7 @@ use socketioxide::{
 };
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::cors::CorsLayer;
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
     });
 
     socket.on("start game", |s: SocketRef| {
-                info!("game id {:?}", s.extensions.get::<GameId>());
+        info!("game id {:?}", s.extensions.get::<GameId>());
         match s.extensions.get::<GameId>() {
             Some(x) => {
                 info!("starting game");
@@ -91,6 +91,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = axum::Router::new()
         .nest_service("/", ServeDir::new("build"))
         .route("/game", axum::routing::post(create_game))
+        .route_service("/game/:game_id", ServeFile::new("build/index.html"))
         .layer(cors)
         .layer(layer);
 

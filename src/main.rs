@@ -42,7 +42,7 @@ async fn start_game(s: SocketRef) {
     match s.extensions.get::<GameId>() {
         Some(x) => {
 
-            if let Ok(data) = reqwest::get("https://api.jikan.moe/v4/top/anime?type=tv").await {
+            if let Ok(data) = reqwest::get("https://api.jikan.moe/v4/top/anime?type=tv&filter=bypopularity").await {
                 if let Ok(json) = data.json::<MALResponse>().await {
                     info!("starting game");
                     let choosen_anime = json.data.choose(&mut rand::thread_rng());

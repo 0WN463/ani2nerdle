@@ -112,8 +112,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = axum::Router::new()
         .route("/game", axum::routing::post(create_game))
-        .layer(cors)
-        .layer(layer);
+        .layer(layer)
+        .layer(cors);
 
     info!("Starting server");
 

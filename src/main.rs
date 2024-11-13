@@ -11,6 +11,7 @@ use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use nanoid::nanoid;
 use rand::seq::SliceRandom; 
+use std::env;
 
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -109,7 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     io.ns("/custom", on_connect);
 
     let cors = CorsLayer::new()
-        .allow_origin( "http://localhost:3001".parse::<HeaderValue>().unwrap());
+        .allow_origin(env::var("FRONTEND_URL").unwrap_or("".to_string()).parse::<HeaderValue>().unwrap());
 
     let app = axum::Router::new()
         .nest_service("/", ServeDir::new("build"))

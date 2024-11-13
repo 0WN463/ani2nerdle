@@ -5,7 +5,6 @@ use socketioxide::{
 };
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
-use tower_http::services::{ServeDir, ServeFile};
 use tower_http::cors::CorsLayer;
 use http::HeaderValue;
 use serde::{Deserialize, Serialize};
@@ -107,15 +106,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (layer, io) = SocketIo::new_layer();
 
     io.ns("/", on_connect);
-    io.ns("/custom", on_connect);
 
     let cors = CorsLayer::new()
         .allow_origin(env::var("FRONTEND_URL").unwrap_or("".to_string()).parse::<HeaderValue>().unwrap());
 
     let app = axum::Router::new()
-        .nest_service("/", ServeDir::new("build"))
         .route("/game", axum::routing::post(create_game))
-        .route_service("/game/:game_id", ServeFile::new("build/index.html"))
         .layer(cors)
         .layer(layer);
 

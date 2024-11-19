@@ -39,21 +39,16 @@ struct MALResponse {
 
 async fn start_game(s: SocketRef) {
     info!("game id {:?}", s.extensions.get::<GameId>());
-    match s.extensions.get::<GameId>() {
-        Some(x) => {
+    if let Some(x) = s.extensions.get::<GameId>() {
+        if let Ok(data) = reqwest::get("https://api.jikan.moe/v4/top/anime?type=tv&filter=bypopularity").await {
+            if let Ok(json) = data.json::<MALResponse>().await {
+                info!("starting game");
+                let choosen_anime = json.data.choose(&mut rand::thread_rng());
 
-            if let Ok(data) = reqwest::get("https://api.jikan.moe/v4/top/anime?type=tv&filter=bypopularity").await {
-                if let Ok(json) = data.json::<MALResponse>().await {
-                    info!("starting game");
-                    let choosen_anime = json.data.choose(&mut rand::thread_rng());
-
-                    if let Some(a) = choosen_anime {
-                        s.within(x.0).emit("start game", &a.mal_id).ok();
-                    }
+                if let Some(a) = choosen_anime {
+                    s.within(x.0).emit("start game", &a.mal_id).ok();
                 }
             }
-        }
-        None => { 
         }
     }
 }
@@ -77,12 +72,8 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
     socket.on("start game", start_game);
 
     socket.on("send anime", |s: SocketRef, Data::<i64>(data)| {
-        match s.extensions.get::<GameId>() {
-            Some(x) => {
-                s.within(x.0).emit("next anime", &data).ok();
-            }
-            None => {
-            }
+        if let Some(x) = s.extensions.get::<GameId>() {
+            s.within(x.0).emit("next anime", &data).ok();
         }
     });
 

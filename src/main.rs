@@ -53,8 +53,7 @@ async fn start_game(s: SocketRef) {
                 }
             }
         }
-        None => {
-            return 
+        None => { 
         }
     }
 }
@@ -83,7 +82,6 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
                 s.within(x.0).emit("next anime", &data).ok();
             }
             None => {
-                return
             }
         }
     });

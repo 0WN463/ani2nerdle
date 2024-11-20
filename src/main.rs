@@ -10,7 +10,7 @@ use std::{
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
 use tower_http::cors::CorsLayer;
-use http::HeaderValue;
+use http::{HeaderValue, StatusCode};
 use serde::{Deserialize, Serialize};
 use nanoid::nanoid;
 use rand::seq::SliceRandom; 
@@ -151,6 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = axum::Router::new()
         .route("/game", axum::routing::post(create_game))
+        .route("/healthz", axum::routing::get(|| async {StatusCode::NO_CONTENT}))
         .layer(layer)
         .layer(cors);
 

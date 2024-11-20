@@ -1,7 +1,11 @@
 use rmpv::Value;
 use socketioxide::{
-    extract::{AckSender, Data, SocketRef},
+    extract::{AckSender, Data, SocketRef, State},
     SocketIo,
+};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
 };
 use tracing::info;
 use tracing_subscriber::FmtSubscriber;
@@ -37,6 +41,35 @@ struct MALResponse {
     data: Vec<Anime>,
 }
 
+#[derive(Clone, Default, Debug)]
+struct Lobby(Arc<RwLock<HashMap<String, (String, Option<String>)>>>);
+
+enum LobbyResult {
+    New,
+    Paired,
+    Full
+}
+
+impl Lobby {
+    fn insert(&self, game_id: String, player_id: String) -> LobbyResult {
+        let mut lock = self.0.write().unwrap();
+
+        if let Some((_, p2)) = lock.get_mut(&game_id) {
+            if p2.is_some() {
+                return LobbyResult::Full;
+            }
+
+            *p2 = Some(player_id);
+
+            return LobbyResult::Paired;
+        } 
+
+        lock.insert(game_id, (player_id, None));
+
+        LobbyResult::New
+    }
+}
+
 async fn start_game(s: SocketRef) {
     info!("game id {:?}", s.extensions.get::<GameId>());
     if let Some(x) = s.extensions.get::<GameId>() {
@@ -53,19 +86,36 @@ async fn start_game(s: SocketRef) {
     }
 }
 
-fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
+fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
     info!(ns = socket.ns(), ?socket.id, "Socket.IO connected");
     socket.emit("auth", &data).ok();
 
-    socket.on("join_game", |s: SocketRef, Data::<EventData>(data)| {
+    socket.on("join_game", |s: SocketRef, Data::<EventData>(data),  state: State<Lobby>, ack: AckSender| {
         if s.extensions.get::<PlayerId>().is_some() {
             return;
         }
 
         s.extensions.insert(PlayerId(data.player_id.clone()));
         s.extensions.insert(GameId(data.game_id.clone()));
-        let _ = s.join(data.game_id.clone());
 
+        let res = state.insert(data.game_id.clone(), data.player_id.clone());
+        info!("lobby {:?}", state.0);
+
+        match res {
+            LobbyResult::New => {
+                ack.send("ok_new").ok();
+            }
+            LobbyResult::Paired => {
+                ack.send("ok_paired").ok();
+            }
+            LobbyResult::Full => {
+                info!("lobby is full");
+                ack.send("room is full").ok();
+                return;
+            }
+        }
+
+        let _ = s.join(data.game_id.clone());
         s.to(data.game_id.clone()).emit("player joined", &data).ok();
     });
 
@@ -92,7 +142,7 @@ async fn create_game() -> String {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::subscriber::set_global_default(FmtSubscriber::default())?;
 
-    let (layer, io) = SocketIo::new_layer();
+    let (layer, io) = SocketIo::builder().with_state(Lobby::default()).build_layer();
 
     io.ns("/", on_connect);
 

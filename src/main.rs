@@ -116,7 +116,7 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
         }
 
         let _ = s.join(data.game_id.clone());
-        s.to(data.game_id.clone()).emit("player joined", &data).ok();
+        s.to(data.game_id.clone()).emit("player joined", &data.player_id.clone()).ok();
     });
 
     socket.on("start game", start_game);

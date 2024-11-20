@@ -46,7 +46,7 @@ struct Lobby(Arc<RwLock<HashMap<String, (String, Option<String>)>>>);
 
 enum LobbyResult {
     New,
-    Paired,
+    Paired(String),
     Full
 }
 
@@ -54,14 +54,14 @@ impl Lobby {
     fn insert(&self, game_id: String, player_id: String) -> LobbyResult {
         let mut lock = self.0.write().unwrap();
 
-        if let Some((_, p2)) = lock.get_mut(&game_id) {
+        if let Some((p1, p2)) = lock.get_mut(&game_id) {
             if p2.is_some() {
                 return LobbyResult::Full;
             }
 
             *p2 = Some(player_id);
 
-            return LobbyResult::Paired;
+            return LobbyResult::Paired(p1.to_string());
         } 
 
         lock.insert(game_id, (player_id, None));
@@ -105,8 +105,8 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
             LobbyResult::New => {
                 ack.send("ok_new").ok();
             }
-            LobbyResult::Paired => {
-                ack.send("ok_paired").ok();
+            LobbyResult::Paired(host_id) => {
+                ack.send(&("ok_paired", host_id)).ok();
             }
             LobbyResult::Full => {
                 info!("lobby is full");

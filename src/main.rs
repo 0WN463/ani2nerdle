@@ -86,6 +86,12 @@ async fn start_game(s: SocketRef) {
     }
 }
 
+async fn on_pass(s: SocketRef) {
+    if let Some(x) = s.extensions.get::<GameId>() {
+        s.within(x.0).emit("pass", &()).ok();
+    }
+}
+
 fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
     info!(ns = socket.ns(), ?socket.id, "Socket.IO connected");
     socket.emit("auth", &data).ok();
@@ -120,6 +126,7 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
     });
 
     socket.on("start game", start_game);
+    socket.on("pass", on_pass);
 
     socket.on("send anime", |s: SocketRef, Data::<i64>(data)| {
         if let Some(x) = s.extensions.get::<GameId>() {

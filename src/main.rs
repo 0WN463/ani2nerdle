@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use nanoid::nanoid;
 use rand::seq::SliceRandom; 
 use std::env;
-
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 #[serde(transparent)]
@@ -70,26 +70,41 @@ impl Lobby {
     }
 }
 
+fn timestamp() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
+
 async fn start_game(s: SocketRef) {
     info!("game id {:?}", s.extensions.get::<GameId>());
-    if let Some(x) = s.extensions.get::<GameId>() {
-        if let Ok(data) = reqwest::get("https://api.jikan.moe/v4/top/anime?type=tv&filter=bypopularity").await {
-            if let Ok(json) = data.json::<MALResponse>().await {
-                info!("starting game");
-                let choosen_anime = json.data.choose(&mut rand::thread_rng());
+    let Some(x) = s.extensions.get::<GameId>() else {
+        return
+    };
 
-                if let Some(a) = choosen_anime {
-                    s.within(x.0).emit("start game", &a.mal_id).ok();
-                }
-            }
-        }
-    }
+    let Ok(data) = reqwest::get("https://api.jikan.moe/v4/top/anime?type=tv&filter=bypopularity").await else {
+        return
+    };
+
+    let Ok(json) = data.json::<MALResponse>().await else {
+        return
+    };
+
+    let choosen_anime = json.data.choose(&mut rand::thread_rng());
+
+    let Some(choosen_anime) = choosen_anime else {
+        return
+    };
+
+
+    info!("starting game; anime: {:?}, ts: {}", choosen_anime, timestamp());
+    s.within(x.0).emit("start game", &(choosen_anime.mal_id, timestamp())).ok();
 }
 
 async fn on_pass(s: SocketRef) {
-    if let Some(x) = s.extensions.get::<GameId>() {
-        s.within(x.0).emit("pass", &()).ok();
-    }
+    let Some(x) = s.extensions.get::<GameId>() else {
+        return
+    };
+
+    s.within(x.0).emit("pass", &timestamp()).ok();
 }
 
 fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
@@ -129,9 +144,11 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
     socket.on("pass", on_pass);
 
     socket.on("send anime", |s: SocketRef, Data::<i64>(data)| {
-        if let Some(x) = s.extensions.get::<GameId>() {
-            s.within(x.0).emit("next anime", &data).ok();
-        }
+        let Some(x) = s.extensions.get::<GameId>() else {
+            return
+        };
+
+        s.within(x.0).emit("next anime", &(data, timestamp())).ok();
     });
 
 

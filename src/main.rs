@@ -142,6 +142,13 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>,) {
 
     socket.on("start game", start_game);
     socket.on("pass", on_pass);
+    socket.on("extend", |s: SocketRef| {
+        let Some(x) = s.extensions.get::<GameId>() else {
+            return
+        };
+
+        s.within(x.0).emit("extend", &()).ok();
+    });
 
     socket.on("send anime", |s: SocketRef, Data::<i64>(data)| {
         let Some(x) = s.extensions.get::<GameId>() else {

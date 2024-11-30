@@ -217,7 +217,9 @@ fn on_connect(socket: SocketRef, Data(data): Data<Value>) {
         };
 
         info!("Disconnected with game ID: {:?}, player ID: {:?}", g, p);
-        state.remove(g.0, p.0);
+        state.remove(g.0.clone(), p.0);
+
+        s.to(g.0).emit("player disconnected", &()).ok();
     });
 }
 
